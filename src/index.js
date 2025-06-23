@@ -30,6 +30,13 @@ app.get("/", (req, res) => {
   res.send("Hello Guys Welcome To CodeMind");
 });
 
+// Router Imports
+import userRouter from "./routes/user.routes.js";
+import bookRouter from "./routes/book.routes.js";
+
+app.use("/api/v1/users", userRouter)
+app.use("/api/v1/books", bookRouter)
+
 const PORT = process.env.PORT || 9012;
 connectDB().then(() => {
   app.listen(PORT, () => {
