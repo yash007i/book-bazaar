@@ -15,7 +15,7 @@ const generateUniqueToken = async (userId) => {
 
     return { uniqueToken };
   } catch (error) {
-    throw new ApiError(500, "Something went wrong, while generated tokens");
+    throw new ApiError(500, "Something went wrong, while generated tokens.");
   }
 };
 
@@ -35,12 +35,7 @@ const registerUser = asyncHandler(async (req, res) => {
   }
 
   const avatarLocalPath = req.files?.avatar[0]?.path;
-  if (avatarLocalPath) {
-    const avatar = await uploadOnCloudinary(avatarLocalPath);
-    if (!avatar) {
-      throw new ApiError(400, "Avatar file is must under 1MB.");
-    }
-  }
+  const avatar = await uploadOnCloudinary(avatarLocalPath);
 
   const user = await User.create({
     fullname,
@@ -58,12 +53,15 @@ const registerUser = asyncHandler(async (req, res) => {
   );
 
   if (!createdUser) {
-    throw new ApiError(500, "Something went wrong, while registering the user");
+    throw new ApiError(
+      500,
+      "Something went wrong, while registering the user.",
+    );
   }
 
   return res
     .status(201)
-    .json(new ApiResponse(200, createdUser, "User rigister successfully"));
+    .json(new ApiResponse(200, createdUser, "User rigister successfully."));
 });
 
 const loginUser = asyncHandler(async (req, res) => {
@@ -127,7 +125,7 @@ const getCurrentUser = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(new ApiResponse(200, "User data found successfully", user));
+    .json(new ApiResponse(200, "User data found successfully.", user));
 });
 
 const forgotPassword = asyncHandler(async (req, res) => {
@@ -194,7 +192,7 @@ const refreshUniqueToken = asyncHandler(async (req, res) => {
       .status(200)
       .json(new ApiResponse(200, "Token refresh successfully."));
   } catch (error) {
-    throw new ApiError(401, "Invalid or expired refresh token");
+    throw new ApiError(401, "Invalid or expired refresh token.");
   }
 });
 

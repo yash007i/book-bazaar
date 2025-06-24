@@ -8,6 +8,7 @@ import {
   registerUser,
 } from "../controllers/user.controllers.js";
 import { isLoggedIn } from "../middlewares/auth.middlewares.js";
+import { upload } from "../middlewares/multer.middlewares.js";
 
 const userRouter = Router();
 userRouter.route("/register").post(
