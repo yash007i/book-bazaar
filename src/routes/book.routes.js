@@ -7,6 +7,7 @@ import {
   getBookById,
   updateBook,
 } from "../controllers/book.controllers.js";
+import { upload } from "../middlewares/multer.middlewares.js";
 
 const bookRouter = Router();
 
