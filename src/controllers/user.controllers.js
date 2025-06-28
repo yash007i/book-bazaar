@@ -1,9 +1,12 @@
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { ApiResponse } from "../utils/ApiResponse.js";
 import { User } from "../models/user.models.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { AvailableUserRoles } from "../constants/userRole.js";
+import { ApiKey } from "../models/api-key.models.js";
 
 const generateUniqueToken = async (userId) => {
   try {
@@ -17,6 +20,10 @@ const generateUniqueToken = async (userId) => {
   } catch (error) {
     throw new ApiError(500, "Something went wrong, while generated tokens.");
   }
+};
+
+const generateApiKey = () => {
+  return crypto.randomBytes(32).toString("hex");
 };
 
 const registerUser = asyncHandler(async (req, res) => {
@@ -83,7 +90,6 @@ const loginUser = asyncHandler(async (req, res) => {
   }
 
   const { uniqueToken } = await generateUniqueToken(user._id);
-
   const loggedInUser = await User.findById(user._id).select(
     "-password -uniqueToken",
   );
@@ -93,10 +99,52 @@ const loginUser = asyncHandler(async (req, res) => {
     secure: true,
     maxAge: 24 * 60 * 60 * 1000,
   };
+
+  const existingKey = await ApiKey.findOne({ owner: user._id, active: true });
+  if (existingKey && existingKey.expiresAt > new Date()) {
+    // If key is valid and not expired, replace with a new key
+    const newKey = generateApiKey();
+    const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    existingKey.key = newKey;
+    existingKey.expiresAt = expiresAt;
+    await existingKey.save();
+
+    return res
+      .status(200)
+      .cookie("uniqueToken", uniqueToken, options)
+      .json(
+        new ApiResponse(
+          200,
+          { loggedInUser, existingKey },
+          "User loggin successfully.",
+        ),
+      );
+  }
+  // If no key or expired, create new one
+  const apiKey = generateApiKey();
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  // Deactivate previous keys
+  await ApiKey.updateMany({ owner: user._id }, { active: false });
+
+  await ApiKey.create({
+    key: apiKey,
+    owner: user._id,
+    expiresAt,
+    active: true,
+  });
+
   return res
     .status(200)
     .cookie("uniqueToken", uniqueToken, options)
-    .json(new ApiResponse(200, loggedInUser, "User loggin successfully."));
+    .json(
+      new ApiResponse(
+        200,
+        { loggedInUser, apiKey },
+        "User loggin successfully.",
+      ),
+    );
 });
 
 const logoutUser = asyncHandler(async (req, res) => {
@@ -104,7 +152,16 @@ const logoutUser = asyncHandler(async (req, res) => {
     uniqueToken: "",
   });
 
-  if (!user) {
+  const apikeyOwner = await ApiKey.findById(req.apiKeyOwner).updateMany(
+    {
+      key: "",
+    },
+    {
+      active: false,
+    },
+  );
+
+  if (!user || !apikeyOwner) {
     throw new ApiError(404, "User not found.");
   }
 
@@ -196,6 +253,29 @@ const refreshUniqueToken = asyncHandler(async (req, res) => {
   }
 });
 
+const updateUserRole = asyncHandler(async (req, res) => {
+  const userId = req.user._id;
+  const { role } = req.body;
+
+  if (!AvailableUserRoles.includes(role)) {
+    return res.status(400).json(ApiError(400, "Invalid user role."));
+  }
+
+  const updatedUser = await User.findByIdAndUpdate(
+    mongoose.Types.ObjectId(userId),
+    { role },
+    { new: true },
+  );
+
+  if (!updatedUser) {
+    return res.status(404).json(ApiError(404, "User not found."));
+  }
+
+  return res
+    .status(200)
+    .json(ApiResponse(200, updatedUser, "User role update successfully."));
+});
+
 export {
   registerUser,
   loginUser,
@@ -203,4 +283,5 @@ export {
   getCurrentUser,
   forgotPassword,
   refreshUniqueToken,
+  updateUserRole,
 };

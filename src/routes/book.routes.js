@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { isLoggedIn } from "../middlewares/auth.middlewares.js";
+import { isAdmin, isLoggedIn, verifyApiKey } from "../middlewares/auth.middlewares.js";
 import {
   addBook,
   deleteBook,
@@ -8,6 +8,8 @@ import {
   updateBook,
 } from "../controllers/book.controllers.js";
 import { upload } from "../middlewares/multer.middlewares.js";
+import { createBookValidator } from "../validators/book.validators.js";
+import { validate } from "../middlewares/validator.middlewares.js";
 
 const bookRouter = Router();
 
@@ -23,11 +25,20 @@ bookRouter.route("/add-book").post(
     },
   ]),
   isLoggedIn,
+  isAdmin,
+  createBookValidator(),
+  validate,
   addBook,
 );
-bookRouter.route("/get-books").get(isLoggedIn, getAllBooks);
-bookRouter.route("/book-by-id/:bookId").get(isLoggedIn, getBookById);
-bookRouter.route("/update-book/:bookId").put(isLoggedIn, updateBook);
-bookRouter.route("/delete-book/:bookId").put(isLoggedIn, deleteBook);
+bookRouter.route("/get-books").get(isLoggedIn, verifyApiKey, getAllBooks);
+bookRouter
+  .route("/book-by-id/:bookId")
+  .get(isLoggedIn, verifyApiKey, getBookById);
+bookRouter
+  .route("/update-book/:bookId")
+  .put(isLoggedIn, verifyApiKey, isAdmin, updateBook);
+bookRouter
+  .route("/delete-book/:bookId")
+  .put(isLoggedIn, verifyApiKey, isAdmin, deleteBook);
 
 export default bookRouter;

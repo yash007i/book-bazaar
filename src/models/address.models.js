@@ -22,19 +22,17 @@ const addressSchema = new Schema(
     coordinates: {
       lat: {
         type: String,
-        required: true,
         trim: true,
       },
       lng: {
         type: String,
-        required: true,
         trim: true,
       },
     },
   },
   {
     timestamps: true,
-  }
+  },
 );
 
 export const Address = mongoose.model("Address", addressSchema);

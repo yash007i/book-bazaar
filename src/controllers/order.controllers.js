@@ -17,8 +17,6 @@ const placeOrder = asyncHandler(async (req, res) => {
   const books = await Book.find({
     _id: { $in: items.map((item) => item.book) },
   });
-  console.log(books);
-
   let totalAmount = 0;
   const validatedItems = [];
 

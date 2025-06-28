@@ -1,6 +1,8 @@
 import jwt from "jsonwebtoken";
 import { ApiError } from "../utils/ApiError.js";
 import { User } from "../models/user.models.js";
+import { AvailableUserRoles } from "../constants/userRole.js";
+import { ApiKey } from "../models/api-key.models.js";
 
 const isLoggedIn = async (req, res, next) => {
   const { uniqueToken } = req.cookies;
@@ -28,4 +30,45 @@ const isLoggedIn = async (req, res, next) => {
     return next(new ApiError(401, "Invalid or expired access token."));
   }
 };
-export { isLoggedIn };
+
+// middlewares/isAdmin.js
+const isAdmin = (req, res, next) => {
+  if (req.user && req.user.role === AvailableUserRoles.ADMIN) {
+    return next(); // Authorized
+  }
+  throw new ApiError(403, "Access denied. Admins only.");
+};
+
+// verify API key
+const verifyApiKey = async (req, res, next) => {
+  const apiKey = req.headers["x-api-key"];
+
+  if (!apiKey) {
+    throw new ApiError(401, "API Key required in x-api-key header");
+  }
+
+  try {
+    const keyRecord = await ApiKey.findOne({ key: apiKey, active: true });
+
+    if (!keyRecord) {
+      throw new ApiError(403, "Invalid or inactive API Key");
+    }
+
+    if (keyRecord.expiresAt && keyRecord.expiresAt < new Date()) {
+      // Optionally deactivate it now
+      keyRecord.active = false;
+      await keyRecord.save();
+
+      throw new ApiError(403, "API Key has expired");
+    }
+
+    // Attach the API key owner to the request if needed
+    req.apiKeyOwner = keyRecord.owner;
+    next();
+  } catch (err) {
+    console.error("API Key verification failed:", err);
+    throw new ApiError(500, "Server error verifying API Key");
+  }
+};
+
+export { isLoggedIn, isAdmin, verifyApiKey };
